@@ -1,27 +1,26 @@
 // api/index.js
+import { Readable } from 'node:stream'; // این خط را اضافه کنید
+
 export default async function handler(req, res) {
   try {
-    // آدرس سرور اصلی V2Ray رو از متغیر محیطی میخونه
-    const target = process.env.TARGET_DOMAIN; // مثال: 45.67.89.123:443 یا my.server.com:8443
+    const target = process.env.TARGET_DOMAIN; // مثال: metal.duckdns.org:2096
     const url = `https://${target}${req.url}`;
-
-    // کپی هدرها و حذف Host اصلی
     const headers = { ...req.headers };
     delete headers['host'];
 
-    // ارسال درخواست به سرور اصلی با قابلیت استریم
     const proxyRes = await fetch(url, {
       method: req.method,
       headers,
       body: req.method !== 'GET' && req.method !== 'HEAD' ? req : undefined,
-      duplex: 'half', // ← این خط برای Node.js ضروریه (نه Vercel)
+      duplex: 'half',
       redirect: 'manual'
     });
 
-    // برگردوندن پاسخ به کلاینت
     res.writeHead(proxyRes.status, proxyRes.headers);
+
     if (proxyRes.body) {
-      proxyRes.body.pipe(res);
+      // تبدیل ReadableStream وب به Stream قابل pipe در Node.js
+      Readable.fromWeb(proxyRes.body).pipe(res);
     } else {
       res.end();
     }
